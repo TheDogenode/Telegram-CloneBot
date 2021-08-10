@@ -1,6 +1,8 @@
+import os
 import subprocess
 import time
 import importlib
+import subprocess
 
 from telegram import ParseMode, BotCommand
 from telegram.ext import CommandHandler, run_async
@@ -8,7 +10,7 @@ from telegram.error import TimedOut, BadRequest
 
 from bot.gDrive import GoogleDriveHelper
 from bot.fs_utils import get_readable_file_size
-from bot.config import BOT_TOKEN, OWNER_ID, GDRIVE_FOLDER_ID
+from bot.config import BOT_TOKEN, OWNER_ID, GDRIVE_FOLDER_ID, GIT_PASS
 from bot.decorators import is_authorised, is_owner
 from bot.clone_status import CloneStatus
 from bot.msg_utils import deleteMessage, sendMessage
@@ -69,9 +71,15 @@ def cloneNode(update, context):
         result = gd.clone(link, status_class, ignoreList=ignoreList)
         deleteMessage(context.bot, msg)
         status_class.set_status(True)
-        sendMessage(result, context.bot, update)
+        if update.message.from_user.username:
+            uname = f'@{update.message.from_user.username}'
+        else:
+            uname = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a>'
+        if uname is not None:
+            cc = f'\n\n<b>Clone by: {uname} ID:</b> <code>{update.message.from_user.id}</code>'
+        sendMessage(result + cc, context.bot, update)
     else:
-        sendMessage("Please Provide a Google Drive Shared Link to Clone.", bot, update)
+        sendMessage("<b>Please Provide a Google Drive Shared Link to Clone.</b>", bot, update)
 
 
 @run_async
@@ -80,7 +88,14 @@ def sendCloneStatus(update, context, status, msg, link):
     while not status.done():
         sleeper(3)
         try:
-            text=f'🔗 *Cloning:* [{status.MainFolderName}]({status.MainFolderLink})\n━━━━━━━━━━━━━━\n🗃️ *Current File:* `{status.get_name()}`\n⬆️ *Transferred*: `{status.get_size()}`\n📁 *Destination:* [{status.DestinationFolderName}]({status.DestinationFolderLink})'
+            if update.message.from_user.username:
+                uname = f'@{update.message.from_user.username}'
+            else:
+                uname = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a>'
+            text=f'🔗 *Cloning:* [{status.MainFolderName}]({status.MainFolderLink})\n━━━━━━━━━━━━━━\n' \
+                 f'🗃️ *Current File:* `{status.get_name()}`\n📚 *Total File:* `{int(len(status.get_name()))}`\n' \
+                 f'⬆️ *Transferred*: `{status.get_size()}`\n📁 *Destination:* [{status.DestinationFolderName}]({status.DestinationFolderLink})\n\n' \
+                 f'*👤 Clone by: {uname} ID:* `{update.message.from_user.id}`'
             if status.checkFileStatus():
                 text += f"\n🕒 *Checking Existing Files:* `{str(status.checkFileStatus())}`"
             if not text == old_text:
@@ -109,9 +124,15 @@ def countNode(update,context):
         gd = GoogleDriveHelper()
         result = gd.count(link)
         deleteMessage(context.bot,msg)
-        sendMessage(result,context.bot,update)
+        if update.message.from_user.username:
+            uname = f'@{update.message.from_user.username}'
+        else:
+            uname = f'<a href="tg://user?id={update.message.from_user.id}">{update.message.from_user.first_name}</a>'
+        if uname is not None:
+            cc = f'\n\n<b>Count by: {uname} ID:</b> <code>{update.message.from_user.id}</code>'
+        sendMessage(result + cc,context.bot,update)
     else:
-        sendMessage("Provide G-Drive Shareable Link to Count.",context.bot,update)
+        sendMessage("<b>Provide G-Drive Shareable Link to Count.</b>",context.bot,update)
 
 @run_async
 @is_owner
@@ -155,22 +176,43 @@ def shell(update, context):
     else:
         message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
+@run_async
+@is_owner
+def gitpull(update, context):
+    msg = update.effective_message.reply_text(
+        "Pulling all changes from remote and then attempting to restart.",
+    )
+    proc = subprocess.Popen("git pull", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    result = proc.communicate(GIT_PASS)
+
+    sent_msg = msg.text + "\n\nChanges pulled... I guess..."
+
+    for i in reversed(range(5)):
+        msg.edit_text(sent_msg + str(i + 1))
+        time.sleep(1)
+
+    if not result.stdout.read():
+        msg.edit_text(f'{result.stderr.read()}')
+       #msg.edit_text(f"Do Restart after you see this with /{BotCommands.RestartCommand}.")
 
 botcmds = [
-BotCommand(f'clone','Copy file/folder to Drive'),
-BotCommand(f'count','Count file/folder of Drive link')]
+BotCommand('clone','Copy file/folder to Drive'),
+BotCommand('count','Count file/folder of Drive link')]
 
 
 def main():
     LOGGER.info("Bot Started!")
     bot.set_my_commands(botcmds)
+    dispatcher.bot.sendMessage(chat_id=OWNER_ID, text=f"<b>Bot Started Successfully!</b>", parse_mode=ParseMode.HTML)
     clone_handler = CommandHandler('clone', cloneNode)
     start_handler = CommandHandler('start', start)
     help_handler = CommandHandler('help', helper)
     log_handler = CommandHandler('logs', sendLogs)
     count_handler = CommandHandler('count', countNode)
     shell_handler = CommandHandler(['shell', 'sh', 'tr', 'term', 'terminal'], shell)
+    GITPULL_HANDLER = CommandHandler('update', gitpull)
     
+    dispatcher.add_handler(GITPULL_HANDLER)
     dispatcher.add_handler(shell_handler)
     dispatcher.add_handler(count_handler)
     dispatcher.add_handler(log_handler)

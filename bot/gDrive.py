@@ -192,7 +192,7 @@ class GoogleDriveHelper:
             msg += f"\n<b>Type : </b>Folder"
             msg += f"\n<b>SubFolders : </b>{self.total_folders}"
             msg += f"\n<b>Files : </b>{self.total_files}"
-            msg += f'<a href="{self.__G_DRIVE_DIR_BASE_DOWNLOAD_URL.format(dir_id)}">☁️ G-Drive Link ☁️</a>'
+            msg += f'\n\n<a href="{self.__G_DRIVE_DIR_BASE_DOWNLOAD_URL.format(dir_id)}">☁️ G-Drive Link ☁️</a>'
             if INDEX_URL:
                 url = requests.utils.requote_uri(f'{INDEX_URL}/{meta.get("name")}/')
                 msg += f' | <a href="{url}">🔗 Index Link 🔗</a>'
