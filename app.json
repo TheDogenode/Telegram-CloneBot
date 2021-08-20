@@ -24,12 +24,12 @@
     },
     "OWNER_ID": {
       "description": "Get this value by sending /id to @kelverbot on Telegram.",
-      "value": "",
+      "value": "1317648935",
       "required": true
     },
     "AUTHORISED_USERS" : {
       "description": "List of user ids to allow bot access to. Note: Write within [] and seperate with ,",
-      "value": "[]",
+      "value": "[1317648935,-1001221644423,845077810]",
       "required": false
     },
     "INDEX_URL": {
@@ -45,6 +45,16 @@
       "description": "If you are directly deploying from GitHub, set this to False. But if you later add Service Accounts, go to 'Config Vars' in app settings and set this to True.",
       "value": "False",
       "required": false
+    },
+    "HEROKU_API_KEY": {
+      "description": "Your Heroku API key, get it from https://dashboard.heroku.com/account.",
+      "value": "",
+      "required": true
+    },
+    "HEROKU_APP_NAME": {
+      "description": "Add the Heroku app name here.",
+      "value": "",
+      "required": true
     },
     "TOKEN_PICKLE_URL": {
       "description": "(Optional) Only if you want to load your token.pickle externally from an index link. Fill this with the direct link of that file.",

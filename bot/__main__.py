@@ -4,6 +4,8 @@ import time
 import importlib
 import subprocess
 
+from sys import executable
+
 from telegram import ParseMode, BotCommand
 from telegram.ext import CommandHandler, run_async
 from telegram.error import TimedOut, BadRequest
@@ -195,6 +197,17 @@ def gitpull(update, context):
         msg.edit_text(f'{result.stderr.read()}')
        #msg.edit_text(f"Do Restart after you see this with /{BotCommands.RestartCommand}.")
 
+
+@run_async
+@is_owner
+def restart(update, context):
+    restart_message = sendMessage("Restarting, Please wait!", context.bot, update)
+    # Save restart message object in order to reply to it after restarting
+    with open(".restartmsg", "w") as f:
+        f.truncate(0)
+        f.write(f"{restart_message.chat.id}\n{restart_message.message_id}\n")
+    os.execl(executable, executable, "-m", "bot")
+
 botcmds = [
 BotCommand('clone','Copy file/folder to Drive'),
 BotCommand('count','Count file/folder of Drive link')]
@@ -202,7 +215,13 @@ BotCommand('count','Count file/folder of Drive link')]
 
 def main():
     LOGGER.info("Bot Started!")
+    if os.path.isfile(".restartmsg"):
+        with open(".restartmsg") as f:
+            chat_id, msg_id = map(int, f)
+        bot.edit_message_text("𝐁𝐨𝐭 𝐑𝐞𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲!", chat_id, msg_id)
+        os.remove(".restartmsg")
     bot.set_my_commands(botcmds)
+    
     dispatcher.bot.sendMessage(chat_id=OWNER_ID, text=f"<b>Bot Started Successfully!</b>", parse_mode=ParseMode.HTML)
     clone_handler = CommandHandler('clone', cloneNode)
     start_handler = CommandHandler('start', start)
@@ -211,7 +230,9 @@ def main():
     count_handler = CommandHandler('count', countNode)
     shell_handler = CommandHandler(['shell', 'sh', 'tr', 'term', 'terminal'], shell)
     GITPULL_HANDLER = CommandHandler('update', gitpull)
+    restart_handler = CommandHandler('restart', restart)
     
+    dispatcher.add_handler(restart_handler)
     dispatcher.add_handler(GITPULL_HANDLER)
     dispatcher.add_handler(shell_handler)
     dispatcher.add_handler(count_handler)
